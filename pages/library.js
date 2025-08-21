@@ -1,6 +1,43 @@
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { getCurrentUser } from '../src/lib/authRepo';
 
 export default function Library() {
+  const [user, setUser] = useState(null);
+  const [likedBooks, setLikedBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 사용자 정보 로드
+  useEffect(() => {
+    const currentUser = getCurrentUser();
+    setUser(currentUser);
+  }, []);
+
+  // 좋아요한 책 목록 로드
+  useEffect(() => {
+    async function loadLikedBooks() {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await fetch(`http://localhost:8080/api/likes/user/${user.id}`);
+        if (response.ok) {
+          const books = await response.json();
+          setLikedBooks(books);
+        }
+      } catch (error) {
+        console.error('좋아요한 책 목록 로딩 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadLikedBooks();
+  }, [user]);
   return (
     <div className="millie-container">
       {/* Top Navigation */}
@@ -150,20 +187,60 @@ export default function Library() {
               <h3>책장</h3>
               <Link href="#" className="view-all">전체보기</Link>
             </div>
-            <div className="favorite-section">
-              <div className="favorite-item">
-                <div className="favorite-icon">
-                  <div className="millie-logo-svg">
-                    <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="50" cy="50" r="50" fill="#E9ECEF"/>
-                      <circle cx="50" cy="50" r="25" fill="#999"/>
-                      <path d="M30 60C30 60 35 45 50 45C65 45 70 60 70 60" fill="#FFD700"/>
-                    </svg>
+            
+            {loading ? (
+              <div className="loading-message">좋아요한 책을 불러오는 중...</div>
+            ) : likedBooks.length > 0 ? (
+              <div className="books-horizontal-scroll">
+                {likedBooks.map((book) => (
+                  <div key={book.id} className="book-card">
+                    <div className="book-cover-large">
+                      <Image
+                        src={`/book-covers/book-${book.id}.jpg`}
+                        alt={book.title}
+                        width={120}
+                        height={160}
+                        className="book-cover-image-large"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                      <div className={`book-cover-fallback book-cover-${(book.id % 11) + 1}`} style={{display: 'none'}}>
+                        📚
+                      </div>
+                    </div>
+                    <h4>{book.title}</h4>
+                    <p>{book.author}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="favorite-section">
+                <div className="favorite-item">
+                  <div className="favorite-icon">
+                    <div className="millie-logo-svg">
+                      <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="50" cy="50" r="50" fill="#E9ECEF"/>
+                        <circle cx="50" cy="50" r="25" fill="#999"/>
+                        <path d="M30 60C30 60 35 45 50 45C65 45 70 60 70 60" fill="#FFD700"/>
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="favorite-info">
+                    <h4>My Favorite</h4>
+                    <p>아직 좋아요한 책이 없습니다</p>
                   </div>
                 </div>
+              </div>
+            )}
+            
+            <div className="favorite-section">
+              <div className="favorite-item">
+                <div className="favorite-icon">❤️</div>
                 <div className="favorite-info">
-                  <h4>My Favorite</h4>
-                  <p>0권</p>
+                  <h4>좋아요한 책</h4>
+                  <p>{likedBooks.length}권</p>
                 </div>
               </div>
             </div>
